@@ -39,16 +39,79 @@ const element = {
 };
 ```
 
+- method
+
+```js
+function createElement(type, props, ...children) {
+  return {
+    type,
+    props: {
+      ...props,
+      children: children.map((child) =>
+        typeof child === "object" ? child : createTextElement(child)
+      ),
+    },
+  };
+}
+
+function createTextElement(text) {
+  return {
+    type: "TEXT_ELEMENT",
+    props: {
+      nodeValue: text,
+      children: [],
+    },
+  };
+}
+```
+
 ## ReactDOM.render
 
 ```js
-const node = document.createElement(element.type);
-node["title"] = element.props.title;
+function render(element, container) {
+  const dom =
+    element.type === "TEXT_ELEMENT"
+      ? document.createTextNode("")
+      : document.createElement(element.type);
 
-//to treat all element in the same way
-const text = document.createTextNode("");
-text["nodeValue"] = element.props.children;
+  const isProperty = (key) => key !== "children";
 
-node.appendChild(text);
-container.appendChild(node);
+  Object.keys(element.props)
+    .filter(isProperty)
+    .forEach((name) => {
+      dom[name] = element.props[name];
+    });
+
+  element.props.children.forEach((child) => {
+    render(child, dom);
+  });
+
+  container.appendChild(dom);
+}
 ```
+
+## Concurrent Mode
+
+- what it does
+  recursive call may block the main thread for too long. —— Break the work into the small units, and afer we finish each unit we'll let the broswer interrupt the rendering if there's anything else that needs to be done.
+- scheduler
+
+```js
+while (nextUnitOfWork) {
+  nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+}
+```
+
+## Fibers
+
+- A data structure: one fiber for each element and each fiber will be a unit of work
+- one unit of work:
+  - add the element to the DOM
+  - create the fibers for the element's children
+  - select the next unit of work
+
+## Render and Commit Phase
+
+once we finish all the work, we commit the whole fiber tree to the dom
+
+## Reconciliation
